@@ -1,0 +1,83 @@
+function [pars] = parameters
+%PARAMETERS function for storing simulation parameters
+%   The output is a structure 'pars' with the following fields:
+
+
+
+% Specify the length(s) of the domain on which to simulate. These values
+% are not used for non-spatial simulations; a 1D simulation will be
+% performed on an interval of length Lx, a 2D simulation will be performed
+% on a rectangle of dimensions Lx-by-Ly 
+Lx = 128;
+Ly = Lx;
+
+% Specify the characteristic particle size 
+womega = 2^(-8);
+
+% "Nx", "Ny": the numbers of lattice voxels in the x- and y- directions.
+% These values are not used for non-spatial simulation. For 1D simulation,
+% Nx specifies the number of voxels in the (regular) lattice
+Nx = 2^9;
+hx = Lx/Nx;
+Ny = Nx;
+hy = Ly/Ny;
+
+% Specify the number of dimensions for the simulation
+dmns = 0;
+
+% "vol": a positive scalar specifying the volume of each lattice voxel. For
+% the non-spatial simulations, this is the volume of the reaction vessel
+if dmns == 0
+    vol = Lx/womega;
+elseif dmns == 1
+    vol = hx/womega;
+elseif dmns == 2
+    vol = hx*hy/womega;
+end
+
+% "rates": a 1xN vector containing the (positive) reaction rates, where N
+% is the number of reactions in the reaction scheme
+rates = [ 0.75, 1, 0.7, 0.125];
+
+% "T_fin": a (positive) scalar specifying the final time to simulate the
+% system until
+T_fin = 200;
+
+% "rec", "ht", "E": rec is an integer specifying the type of recording to
+% be implemented. Currently there are three options coded:
+rec = 1;
+% 1: record the system state at regular time points: ht, 2*ht, 3*ht, ...
+% where ht is a specified interval
+ht = 2^(-2);
+% 2: record the time and system state after every E reaction events, where
+% E is a specified integer
+E = 10^4;
+% 3: record the time and system state after every reaction event
+
+
+% "diffs": a 1xS vector containing the positive species diffusivities,
+% where S is the number of species in the system
+diffs = [ 1, 10 ]/(hx^2);
+
+% "max_react_on": a logical variable specifying whether the simulation may
+% terminate prematurely if a specified number of reaction events is
+% exceeded. To turn this termination condition OFF, set max_react_on to be
+% FALSE.
+max_react_on = false;
+% "R_max": If the termination condition is ON, then the cutoff number of
+% reaction events is specified by the integer R_max: 
+R_max = 2.5 * 10^11;
+
+
+
+pars = struct('rates', rates, 'diffs', diffs, 'vol', vol, ...
+    'T_fin', T_fin, 'macDiffs', diffs*(hx^2), ...
+    'rec', rec, 'ht', ht, 'E', E, ...
+    'Nx', Nx, 'Ny', Ny, 'Lx', Lx, 'Ly', Ly, ...
+    'xwidth', hx, 'ywidth', hy, ...
+    'max_react_on', max_react_on, 'R_max', R_max ...
+    );
+
+
+
+end
