@@ -1,0 +1,190 @@
+function [schema,pars] = reactionscheme
+%REACTIONSCHEME function for constructing various algebraic and numerical
+%quantities determined by the stoichiometry of a specified reaction scheme
+%   The output is a structure 'schema' with fields containing the
+%   stoichiometric coefficients and effects, specified rate parameters,
+%   algebraic forms for the polynomial reaction terms and Jacobian
+%   (assuming mass-action kinetics) and a chosen steady state, both
+%   symbolically as a function of the rate parameters and numerically
+%   evaluated for the specified values of the rate parameters.
+
+pars = parameters;
+
+% Specify the stoichiometry of the reactions. Here we assume a system with
+% two component reactant species, so the matrices alpha and beta
+% (respectively, the stoichiometric reactant and product coefficients) each
+% have two columns
+alpha = [2, 0; ...
+         1, 1; ...
+         1, 0; ...
+         0, 1];
+beta = [6, 1; ...
+        0, 0; ...
+        0, 0; ...
+        2, 2];
+% NOTE: alpha and beta should have the same number of rows, being the
+% number of reactions. For each reaction, a positive reaction rate
+% parameter should be specified in the parameters.m script
+
+% For convenience we compute the stoichiometric effect of each reaction on
+% each species, contained in the matrix gamma
+gamma = beta - alpha;
+% and for automation, we extract N the number of reactions
+[N,~] = size(alpha);
+
+
+% We compile the functional forms for the polynomial reaction terms
+% (assuming mass-action kinetics) and for the entries of the Jacobian
+
+syms u v positive
+syms r [1 N] positive
+
+F = symfun(0, [u v r]);
+G = symfun(0, [u v r]);
+J = symfun([0, 0; 0, 0], [u v r]);
+H = symfun([0; 0; 0], [u v r]);
+NonL = symfun([0, 0, 0; 0, 0, 0], [u v r]);
+for i = 1:N
+   F = F + symfun(r(i) * gamma(i,1) * u^alpha(i,1) * v^alpha(i,2) ,[u v r]);
+   G = G + symfun(r(i) * gamma(i,2) * u^alpha(i,1) * v^alpha(i,2) ,[u v r]);
+   J = J + symfun([r(i) * gamma(i,1) * alpha(i,1) * u^(alpha(i,1)-1) * v^alpha(i,2) , ...
+       r(i) * gamma(i,1) * alpha(i,2) * u^alpha(i,1) * v^(alpha(i,2)-1) ; ...
+       r(i) * gamma(i,2) * alpha(i,1) * u^(alpha(i,1)-1) * v^alpha(i,2) , ...
+       r(i) * gamma(i,2) * alpha(i,2) * u^alpha(i,1) * v^(alpha(i,2)-1) ], [u v r]);
+   H = H + symfun(r(i) * u^alpha(i,1) * v^alpha(i,2) * [ gamma(i,1)^2 ; ...
+       gamma(i,1)*gamma(i,2) ; gamma(i,2)^2 ], [u v r]);
+   NonL = NonL + symfun([r(i) * gamma(i,1) * alpha(i,1) * (alpha(i,1)-1) * u^(alpha(i,1)-2) * v^alpha(i,2) , ...
+       r(i) * gamma(i,1) * alpha(i,1) * alpha(i,2) * u^(alpha(i,1)-1) * v^(alpha(i,2)-1) , ...
+       r(i) * gamma(i,1) * alpha(i,2) * (alpha(i,2)-1) * u^alpha(i,1) * v^(alpha(i,2)-2) ; ...
+       r(i) * gamma(i,2) * alpha(i,1) * (alpha(i,1)-1) * u^(alpha(i,1)-2) * v^alpha(i,2) , ...
+       r(i) * gamma(i,2) * alpha(i,1) * alpha(i,2) * u^(alpha(i,1)-1) * v^(alpha(i,2)-1) , ...
+       r(i) * gamma(i,2) * alpha(i,2) * (alpha(i,2)-1) * u^alpha(i,1) * v^(alpha(i,2)-2) ], [u v r]);
+end
+
+% Compute the steady state solution (u*,v*), if one exists. For high-order
+% polynomial interaction terms symbolic solution is less likely to work.
+% The code below can reliably compute all positive steady states for
+% elementary reaction schemes and will flag if these are only positive
+% under certain conditions
+
+warning('off','symbolic:solve:SolutionsDependOnConditions');
+
+stst = solve([F;G],[u,v],'ReturnConditions', true);
+[n,~] = size(stst.u);
+[~,p] = size(stst.parameters);
+
+if p > 0
+    disp('Symbolic solution for uniform steady state(s) was inconclusive')
+    disp('Please manually specify initial conditions for simulation')
+    return
+end
+
+if stst.conditions ~= symtrue
+    disp('Warning: uniform steady state solution(s) may be only conditionally positive')
+end
+
+if n == 0
+    disp('No positive uniform steady state solution found')
+    return
+elseif n == 1
+    us = stst.u;
+    vs = stst.v;
+else
+    disp('Multiple uniform steady state solutions (u*,v*)_n found:')
+    for i = 1:n
+        fprintf('n = %d : \n', i)
+        fprintf('     u* = %s \n', stst.u(i))
+        fprintf('     v* = %s \n', stst.v(i))
+    end
+    ind = input("Please select a uniform steady state solution: n = ");
+    us = stst.u(ind);
+    vs = stst.v(ind);
+end
+
+% Then we can evaluate the steady state Jacobian for the given reaction
+% rates, or compute the steady state Jacobian J* = J(u*,v*) as a function
+% of the reaction rates, (or even compute the Jacobian not at steady state
+% as a function of u and v for the given reaction rates or as a function of
+% reaction rate parameters). Here, ustar and vstar give the numeric values
+% of the steady state concentrations for the specified reaction rate
+% parameter values and Jstar gives the numeric form of the Jacobian
+% evaluated at this state.
+ustar = double(subs(us,r,pars.rates));
+vstar = double(subs(vs,r,pars.rates));
+Jstar = double(subs(J, [u v r], [ustar vstar pars.rates]));
+Hstar = double(subs(H, [u v r], [ustar vstar pars.rates]));
+NonLstar = double(subs(NonL, [u v r], [ustar vstar pars.rates]));
+
+% We also store the type of reaction, such that reaction propensities can
+% be computed automatically during simulations. This information is stored
+% as an integer per reaction, identifying it as one of the following types:
+% 1: a zeroth order reaction 0 -> ...
+% 2: a first order reaction U -> ... (where U is the first species)
+% 3: a first order reaction U -> ... (where V is the second species)
+% 4: a second order reaction U + U -> ... 
+% 5: a second order reaction U + V -> ...
+% 6: a second order reaction V + V -> ...
+% 7: a third order reaction U + U + U -> ... 
+% 8: a third order reaction U + U + V -> ...
+% 9: a third order reaction U + V + V -> ...
+% 10: a third order reaction V + V + V -> ...
+% It is assumed that the system is comprised of only two ineracting species
+% undergoing reactions of at most third order.
+
+prop_ids = zeros(N,1);
+NlQc = zeros(2,3);
+for i = 1:N
+    if isequal(alpha(i,:), [0 0])
+        prop_ids(i) = 1;
+    elseif isequal(alpha(i,:), [1 0])
+        prop_ids(i) = 2;
+    elseif isequal(alpha(i,:), [0 1])
+        prop_ids(i) = 3;
+    elseif isequal(alpha(i,:), [2 0])
+        prop_ids(i) = 4;
+        NlQc(:,1) = NlQc(:,1) + pars.rates(i)*gamma(i,:)';
+    elseif isequal(alpha(i,:), [1 1])
+        prop_ids(i) = 5;
+        NlQc(:,2) = NlQc(:,2) + pars.rates(i)*gamma(i,:)';
+    elseif isequal(alpha(i,:), [0 2])
+        prop_ids(i) = 6;
+        NlQc(:,3) = NlQc(:,3) + pars.rates(i)*gamma(i,:)';
+    elseif isequal(alpha(i,:), [3 0])
+        prop_ids(i) = 7;
+    elseif isequal(alpha(i,:), [2 1])
+        prop_ids(i) = 8;
+    elseif isequal(alpha(i,:), [1 2])
+        prop_ids(i) = 9;
+    elseif isequal(alpha(i,:), [0 3])
+        prop_ids(i) = 10;
+    end
+end
+
+% Compute the absorbing states for a non-spatial simulation
+abs_st = [];
+for x = 0:2
+    for y = 0:2
+        props_all = [1 ; x ; y ; x*(x-1); x*y ; y*(y-1) ; ...
+            x*(x-1)*(x-2); x*(x-1)*y ; x*y*(y-1) ; y*(y-1)*(y-2)];
+        prop_tot = sum(props_all(prop_ids));
+        if prop_tot == 0
+            abs_st = cat(1, abs_st , [x , y]);
+        end
+    end
+end
+
+schema = struct( ...
+    'gamma', gamma, ...
+    'prop_ids', prop_ids, ...
+    'symb_rhs', [F;G], ...
+    'symb_stst', [us;vs], ...
+    'symb_J', J, ...
+    'stst', [ustar, vstar], ...
+    'Jstar', Jstar, ...
+    'Hstar', Hstar, ...
+    'NonLstar', NonLstar, ...
+    'NlQc', NlQc, ...
+    'abs_st', abs_st ...
+    );
+
+end
