@@ -1,0 +1,122 @@
+%% mETDRK4
+
+%[schema,pars] = reactionscheme;
+%pars = parameters;
+
+% Spatial grid and initial condition:
+N = pars.Nx ;
+x = pars.Lx*(1:N)'/N;
+u = 0.0001*schema.stst(1)*(rand(N,1)-0.5);
+v = 0.0001*schema.stst(2)*(rand(N,1)-0.5);
+%u = 0.000001*cos(3*x*2*pi/pars.Lx);
+%v = 0.000001*cos(3*x*2*pi/pars.Lx);
+u = u - sum(u)/N;
+v = v - sum(v)/N;
+hatu = fft(u);
+hatv = fft(v);
+
+% time step
+hht = 2^(-15);
+% number of time steps
+nmax = round(pars.T_fin/hht);
+% number of time steps between recordings
+nplt = round(nmax * pars.ht / pars.T_fin);
+
+
+% Precompute various mETDRK4 quantities:
+
+% diffusion wavenumber multipliers
+k = [0:(N/2) , (1 - N/2):-1]'*(2*pi/pars.Lx);
+
+% Linear operator        
+L = kron(schema.Jstar,speye(N)) ...
+    - spdiags([pars.macDiffs(1)*k.^2 ; pars.macDiffs(2)*k.^2],0,2*N,2*N) ;
+% Nonlinear coefficients
+Nlc = kron(schema.NlQc,speye(N));
+
+% Matrix exponentials of Lh/2 and of Lh
+%E2 = expm(hht*L/2);
+%E = E2^2;
+
+% no. of points for complex means
+%M = 16;
+% lower bound for radius of circular integration contour
+%gamma = max(abs(eig(full(hht*L))));
+% interpolation points on the contour
+%r = (gamma+2)*exp(1i*pi*((1:M)-.5)/M);
+
+% coefficient matrices
+%f0 = zeros(2*N);
+%f1 = zeros(2*N);
+%f2 = zeros(2*N);
+%f3 = zeros(2*N);
+
+%for i = 1:M
+%    LR = hht*L + r(i)*speye(2*N);
+%    X2 = expm(LR/2);
+%    X = X2^2;
+%    f0 = f0 + (hht/M) * (LR\(X2-speye(2*N)));
+%    f1 = f1 + (hht/M) * ((LR^3)\(-4*speye(2*N)-LR+X*(4*speye(2*N)-3*LR+LR^2)));
+%    f2 = f2 + (hht/M) * ((LR^3)\(2*speye(2*N)+LR+X*(-2*speye(2*N)+LR)));
+%    f3 = f3 + (hht/M) * ((LR^3)\(-4*speye(2*N)-3*LR-LR^2+X*(4*speye(2*N)-LR)));
+%end
+
+LR = hht*L;
+
+E2 = speye(2*N) + LR/2 + (LR^2)/8 + (LR^3)/48 + (LR^4)/384;
+E = speye(2*N) + LR + (LR^2)/2 + (LR^3)/6 + (LR^4)/24;
+
+f0 = hht * (speye(2*N)/2 + LR/8 + (LR^2)/48 + (LR^3)/384 + (LR^4)/3840 );
+f1 = hht * (speye(2*N)/6 + LR/6 + 3*(LR^2)/40 + (LR^3)/45 + 5*(LR^4)/1008 );
+f2 = hht * (speye(2*N)/6 + LR/12 + (LR^2)/40 + (LR^3)/180 + (LR^4)/1008 );
+f3 = hht * (speye(2*N)/6 - (LR^2)/120 - (LR^3)/360 - (LR^4)/1680 );
+
+f0 = sparse(real(f0));
+f1 = sparse(real(f1));
+f2 = sparse(real(f2));
+f3 = sparse(real(f3));
+
+% Main time-stepping loop:
+uu=u;
+vv=v;
+tt=0;
+
+for n = 1:nmax
+    t = n*hht;
+
+    N0 = Nlc * [fft(real(ifft(hatu)).^2) ; ...
+        fft(real(ifft(hatu))).*fft(real(ifft(hatv))) ; ...
+        fft(real(ifft(hatv)).^2)];
+
+    a = E2*[hatu ; hatv] + f0*N0;
+    Na = Nlc * [fft(real(ifft(a(1:N))).^2) ; ...
+        fft(real(ifft(a(1:N)))).*fft(real(ifft(a(N+1:end)))); ...
+        fft(real(ifft(a(N+1:end))).^2)];
+    
+    b = E2*[hatu ; hatv] + f0*Na;
+    Nb = Nlc * [fft(real(ifft(b(1:N))).^2) ; ...
+        fft(real(ifft(b(1:N)))).*fft(real(ifft(b(N+1:end))));
+        fft(real(ifft(b(N+1:end))).^2)];
+
+    c = E2*a + f0*(2*Nb-N0);
+    Nc = Nlc * [fft(real(ifft(c(1:N))).^2) ; ...
+        fft(real(ifft(c(1:N)))).*fft(real(ifft(c(N+1:end))));
+        fft(real(ifft(c(N+1:end))).^2)];
+    
+    z = E*[hatu ; hatv] + f1*N0 + 2*f2*(Na+Nb) + f3*Nc;
+    hatu = z(1:N);
+    hatv = z(N+1:end);
+
+    if mod(n,nplt)==0
+        u = real(ifft(hatu));
+        v = real(ifft(hatv));
+        uu = cat(2,uu,u);
+        vv = cat(2,vv,v);
+        tt = cat(2,tt,t);
+    end
+end
+
+clear a b c E E2 f1 f2 f3 hatu hatv hht i L LR M
+clear n N0 Na Nb Nc Nlc nmax nplt f0 r t u v X X2 z
+
+ETDplot
