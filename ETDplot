@@ -6,9 +6,7 @@ subplot(1,2,1)
 surf(tt(2:end),[0;x],schema.stst(1) + [uu(end,2:end);uu(:,2:end)])
 ax1 = gca;
 shading interp
-%lighting phong
 axis tight
-%view([-90 90])
 colormap(gray);
 set(gca,'YDir',"reverse");
 ax1.XLabel.String = '$t$';
@@ -22,103 +20,11 @@ subplot(1,2,2)
 surf(tt(2:end),[0;x],schema.stst(2) + [vv(end,2:end);vv(:,2:end)])
 ax2 = gca;
 shading interp
-lighting phong
 axis tight
-%view([-90 90])
-%colormap(autumn);
 set(gca,'YDir',"reverse");
 ax2.XLabel.String = '$t$';
 ax2.YLabel.String = '$x$';
 ax2.Title.String = '$v(x,t)$';
-ax2.XLabel.Interpreter = 'latex';
-ax2.YLabel.Interpreter = 'latex';
-ax2.Title.Interpreter = 'latex';
-
-
-
-% Plot Fourier amplitudes:
-
-uamps = zeros(N/2,length(tt));
-vamps = zeros(N/2,length(tt));
-hatu = fft(uu);
-hatv = fft(vv);
-
-uamps(2:end,:) = (2/N) * ( hatu(2:N/2,:).*hatu(end:-1:(N/2+2),:) ).^(1/2);
-vamps(2:end,:) = (2/N) * ( hatv(2:N/2,:).*hatv(end:-1:(N/2+2),:) ).^(1/2);
-
-figure()
-subplot(1,2,1)
-surf(tt, 0:(N/2-1), log(uamps))
-ax1 = gca;
-axis tight
-ax1.ZLim(1) = log(eps);
-%view([-90 90])
-colormap(winter);
-shading flat
-set(ax1,'YDir',"reverse");
-ax1.XLabel.String = '$t$';
-ax1.YLabel.String = '$k_{e}$';
-ax1.Title.String = '$\log|\hat{u}_k (t)|$';
-ax1.XLabel.Interpreter = 'latex';
-ax1.YLabel.Interpreter = 'latex';
-ax1.Title.Interpreter = 'latex';
-
-subplot(1,2,2)
-surf(tt, 0:(N/2-1), log(vamps))
-ax2 = gca;
-axis tight
-ax2.ZLim(1) = log(eps);
-colormap(winter);
-shading flat
-set(gca,'YDir',"reverse");
-ax2.XLabel.String = '$t$';
-ax2.YLabel.String = '$k_{e}$';
-ax2.Title.String = '$\log|\hat{v}_k (t)|$';
-ax2.XLabel.Interpreter = 'latex';
-ax2.YLabel.Interpreter = 'latex';
-ax2.Title.Interpreter = 'latex';
-
-
-
-
-
-% Plot Fourier phases:
-
-uargs = zeros(N/2,length(tt));
-vargs = zeros(N/2,length(tt));
-
-uargs(2:end,:) = 0 - angle( (2/N)*hatu(2:N/2,:) ./ uamps(2:N/2,:) .* exp(-2i*pi/N .* (1:(N/2-1)) )' );
-vargs(2:end,:) = 0 - angle( (2/N)*hatv(2:N/2,:) ./ uamps(2:N/2,:) .* exp(-2i*pi/N .* (1:(N/2-1)) )' );
-
-figure()
-subplot(1,2,1)
-ax1 = gca;
-hold on
-for i = 1:N/4
-    plot3(tt, i-1 + 0.*tt, uargs(i,:) )
-end
-axis tight
-colormap(spring);
-set(gca,'YDir',"reverse");
-ax1.XLabel.String = '$t$';
-ax1.YLabel.String = '$k_{e}$';
-ax1.Title.String = '$?$';
-ax1.XLabel.Interpreter = 'latex';
-ax1.YLabel.Interpreter = 'latex';
-ax1.Title.Interpreter = 'latex';
-
-subplot(1,2,2)
-ax2 = gca;
-hold on
-for i = 1:N/4
-    plot3(tt, i-1 + 0.*tt, vargs(i,:) )
-end
-axis tight
-colormap(spring);
-set(gca,'YDir',"reverse");
-ax2.XLabel.String = '$t$';
-ax2.YLabel.String = '$k_{e}$';
-ax2.Title.String = '$?$';
 ax2.XLabel.Interpreter = 'latex';
 ax2.YLabel.Interpreter = 'latex';
 ax2.Title.Interpreter = 'latex';
