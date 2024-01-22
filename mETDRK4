@@ -23,7 +23,7 @@ nmax = round(pars.T_fin/hht);
 nplt = round(nmax * pars.ht / pars.T_fin);
 
 
-% Precompute various mETDRK4 quantities:
+% Precompute Taylor expansion approximations to various mETDRK4 quantities:
 
 % diffusion wavenumber multipliers
 k = [0:(N/2) , (1 - N/2):-1]'*(2*pi/pars.Lx);
@@ -33,33 +33,6 @@ L = kron(schema.Jstar,speye(N)) ...
     - spdiags([pars.macDiffs(1)*k.^2 ; pars.macDiffs(2)*k.^2],0,2*N,2*N) ;
 % Nonlinear coefficients
 Nlc = kron(schema.NlQc,speye(N));
-
-% Matrix exponentials of Lh/2 and of Lh
-%E2 = expm(hht*L/2);
-%E = E2^2;
-
-% no. of points for complex means
-%M = 16;
-% lower bound for radius of circular integration contour
-%gamma = max(abs(eig(full(hht*L))));
-% interpolation points on the contour
-%r = (gamma+2)*exp(1i*pi*((1:M)-.5)/M);
-
-% coefficient matrices
-%f0 = zeros(2*N);
-%f1 = zeros(2*N);
-%f2 = zeros(2*N);
-%f3 = zeros(2*N);
-
-%for i = 1:M
-%    LR = hht*L + r(i)*speye(2*N);
-%    X2 = expm(LR/2);
-%    X = X2^2;
-%    f0 = f0 + (hht/M) * (LR\(X2-speye(2*N)));
-%    f1 = f1 + (hht/M) * ((LR^3)\(-4*speye(2*N)-LR+X*(4*speye(2*N)-3*LR+LR^2)));
-%    f2 = f2 + (hht/M) * ((LR^3)\(2*speye(2*N)+LR+X*(-2*speye(2*N)+LR)));
-%    f3 = f3 + (hht/M) * ((LR^3)\(-4*speye(2*N)-3*LR-LR^2+X*(4*speye(2*N)-LR)));
-%end
 
 LR = hht*L;
 
@@ -116,7 +89,5 @@ for n = 1:nmax
     end
 end
 
-clear a b c E E2 f1 f2 f3 hatu hatv hht i L LR M
-clear n N0 Na Nb Nc Nlc nmax nplt f0 r t u v X X2 z
-
-ETDplot
+clear a b c E E2 f0 f1 f2 f3 hatu hatv hht i L LR M
+clear n N0 Na Nb Nc Nlc nmax nplt r t u v X X2 z
