@@ -99,3 +99,33 @@ end
 
 clear a b c E E2 f0 f1 f2 f3 hatu hatv hht i L LR M
 clear n N0 Na Nb Nc Nlc nmax nplt r t u v X X2 z
+
+
+%% Plot results:
+figure()
+subplot(1,2,1)
+surf(tt(2:end),[0;x],schema.stst(1) + [uu(end,2:end);uu(:,2:end)])
+ax1 = gca;
+shading interp
+axis tight
+colormap(gray);
+set(gca,'YDir',"reverse");
+ax1.XLabel.String = '$t$';
+ax1.YLabel.String = '$x$';
+ax1.Title.String = '$u(x,t)$';
+ax1.XLabel.Interpreter = 'latex';
+ax1.YLabel.Interpreter = 'latex';
+ax1.Title.Interpreter = 'latex';
+
+subplot(1,2,2)
+surf(tt(2:end),[0;x],schema.stst(2) + [vv(end,2:end);vv(:,2:end)])
+ax2 = gca;
+shading interp
+axis tight
+set(gca,'YDir',"reverse");
+ax2.XLabel.String = '$t$';
+ax2.YLabel.String = '$x$';
+ax2.Title.String = '$v(x,t)$';
+ax2.XLabel.Interpreter = 'latex';
+ax2.YLabel.Interpreter = 'latex';
+ax2.Title.Interpreter = 'latex';
