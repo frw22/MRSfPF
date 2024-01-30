@@ -4,8 +4,7 @@ function [schema,pars] = reactionscheme
 %   The output is a structure 'schema' with fields containing the
 %   stoichiometric coefficients and effects, specified rate parameters,
 %   algebraic forms for the polynomial reaction terms and Jacobian
-%   (assuming mass-action kinetics) and a chosen steady state, both
-%   symbolically as a function of the rate parameters and numerically
+%   (assuming mass-action kinetics) and a chosen steady state, numerically
 %   evaluated for the specified values of the rate parameters.
 
 pars = parameters;
@@ -16,12 +15,10 @@ pars = parameters;
 % have two columns
 alpha = [2, 0; ...
          1, 1; ...
-         1, 0; ...
          0, 1];
-beta = [6, 1; ...
+beta = [4, 3; ...
         0, 0; ...
-        0, 0; ...
-        2, 2];
+        1, 0];
 % NOTE: alpha and beta should have the same number of rows, being the
 % number of reactions. For each reaction, a positive reaction rate
 % parameter should be specified in the parameters.m script
@@ -54,8 +51,8 @@ end
 % Compute the steady state solution (u*,v*), if one exists. For high-order
 % polynomial interaction terms symbolic solving is less likely to work.
 % The code below can reliably compute all positive steady states for
-% elementary reaction schemes and will flag if these are only positive
-% under certain conditions
+% elementary reaction schemes -- i.e. reaction schemes of at most bi-particulate
+% reactions and will flag if these are only positive under certain conditions
 
 warning('off','symbolic:solve:SolutionsDependOnConditions');
 
@@ -92,13 +89,9 @@ else
 end
 
 % Then we can evaluate the steady state Jacobian for the given reaction
-% rates, or compute the steady state Jacobian J* = J(u*,v*) as a function
-% of the reaction rates, (or even compute the Jacobian not at steady state
-% as a function of u and v for the given reaction rates or as a function of
-% reaction rate parameters). Here, ustar and vstar give the numeric values
-% of the steady state concentrations for the specified reaction rate
-% parameter values and Jstar gives the numeric form of the Jacobian
-% evaluated at this state.
+% rates. Here, ustar and vstar give the numeric values of the steady state
+% concentrations for the specified reaction rate parameter values and Jstar
+% gives the numeric form of the Jacobian evaluated at this state.
 ustar = double(subs(us,r,pars.rates));
 vstar = double(subs(vs,r,pars.rates));
 Jstar = double(subs(J, [u v r], [ustar vstar pars.rates]));
@@ -118,9 +111,6 @@ end
 
 schema = struct( ...
     'gamma', gamma, ...
-    'symb_rhs', [F;G], ...
-    'symb_stst', [us;vs], ...
-    'symb_J', J, ...
     'stst', [ustar, vstar], ...
     'Jstar', Jstar, ...
     'NlQc', NlQc, ...
