@@ -11,7 +11,7 @@ hx = Lx/Nx;
 
 % "rates": a 1xN vector containing the (positive) reaction rates, where N
 % is the number of reactions in the reaction scheme
-rates = [ 0.75, 1, 0.7, 0.125];
+rates = [ 0.75, 1, 0.7];
 
 % "T_fin": a (positive) scalar specifying the final time to simulate the
 % system until
@@ -24,7 +24,6 @@ ht = 2^(-2);
 % "diffs": a 1xS vector containing the positive species diffusivities,
 % where S is the number of species in the system
 diffs = [ 1, 10 ]/(hx^2);
-
 
 pars = struct('rates', rates, ...
     'diffs', diffs, ...
