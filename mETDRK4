@@ -1,15 +1,19 @@
 %% mETDRK4
+% This script implements an exponential time difference scheme for numerical
+% integration of a two-species elementary reaction scheme assuming mass-action
+% kinetics. The scheme is an approximation to the fourth-order Runge Kutta type
+% scheme presented by Cox and Matthews (doi:10.1006/jcph.2002.6995), further
+% analysed and refined by Kassam and Trefethen (doi:10.1137/S1064827502410633)
 
-%[schema,pars] = reactionscheme;
-%pars = parameters;
+[schema,pars] = reactionscheme;
 
 % Spatial grid and initial condition:
 N = pars.Nx ;
 x = pars.Lx*(1:N)'/N;
+
 u = 0.0001*schema.stst(1)*(rand(N,1)-0.5);
 v = 0.0001*schema.stst(2)*(rand(N,1)-0.5);
-%u = 0.000001*cos(3*x*2*pi/pars.Lx);
-%v = 0.000001*cos(3*x*2*pi/pars.Lx);
+
 u = u - sum(u)/N;
 v = v - sum(v)/N;
 hatu = fft(u);
@@ -17,13 +21,17 @@ hatv = fft(v);
 
 % time step
 hht = 2^(-15);
+
 % number of time steps
 nmax = round(pars.T_fin/hht);
+
 % number of time steps between recordings
 nplt = round(nmax * pars.ht / pars.T_fin);
 
-
-% Precompute Taylor expansion approximations to various mETDRK4 quantities:
+% Precompute Taylor expansion approximations to various mETDRK4 quantities.
+% These could be computed exactly using matrix exponentiation, here for convenience
+% they are approximated to fifth-order in the time step 'hht', such that the numerical
+% scheme is still fourth-order accurate in time
 
 % diffusion wavenumber multipliers
 k = [0:(N/2) , (1 - N/2):-1]'*(2*pi/pars.Lx);
